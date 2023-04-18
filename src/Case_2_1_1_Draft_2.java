@@ -80,6 +80,7 @@ public class Case_2_1_1_Draft_2 {
             }
         }
         System.out.println(arrayList);
+        System.out.println(arrayList.get(1));
 
 //        Нахождение наибольшего значения.
 //        double listMaxx = arrayList[0];

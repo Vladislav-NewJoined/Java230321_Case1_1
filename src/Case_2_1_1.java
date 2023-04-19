@@ -9,7 +9,9 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 
 public class Case_2_1_1 {
     // Кейс «Анализатор курса валют».
@@ -38,9 +40,12 @@ public class Case_2_1_1 {
         // Задаём адрес исходной веб-страницы Центробанка в текстовом формате.
         String originalPageText = "https://cbr.ru/scripts/XML_dynamic.asp?date_req1=12/11/2021&date_req2=12/11/2021&VAL_NM_RQ=R01235";
 
-// get the last day of month
+//    get the last day of month
         int lastDay = ym.lengthOfMonth();
-// loop through the days
+//    Создаем массив ArrayList, куда записываем в качестве элементов курс на текущую дату.
+        List<Double> list = new ArrayList<>();
+
+//    loop through the days
         for (int day = 1; day <= lastDay; day++) {
             // create the day
             LocalDate dt = ym.atDay(day);
@@ -68,11 +73,36 @@ public class Case_2_1_1 {
                 // System.out.println(courseNextDoble);
                 // Выводим на экран дату и соответствующий курс.
                 System.out.println("Курс на " + nextDate + "    " + courseNextDoble);
+                list.add(courseNextDoble);
             } else {
                 String courseNextPage = "";
                 System.out.println("Курс на " + nextDate);
             }
         }
+//        System.out.println(list);
+//        System.out.println(list.get(1));
+
+//        Нахождение наибольшего значения.
+//        Задаем исходную переменную: от которой начинаем считать.
+        Double min = list.get(0);
+        Double max = list.get(0);
+//        Задаем переменную: длина (или размер) массива.
+        int n = list.size();
+
+//        Задаем цикл перебора массива для поиска наибольшего и наименьшего значений.
+        for (int i = 1; i < n; i++) {
+            if (list.get(i) > max) {
+                max = list.get(i);
+            }
+        }
+
+        for (int i = 1; i < n; i++) {
+            if (list.get(i) < min) {
+                min = list.get(i);
+            }
+        }
+        System.out.println("\nНаибольшее значение курса: " + max);
+        System.out.println("Наименьшее значение курса: " + min);
     }
 
     private static String downloadWebPage(String url) throws IOException {

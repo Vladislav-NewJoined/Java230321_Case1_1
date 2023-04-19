@@ -18,6 +18,7 @@ public class Case_2_1_1 {
     // Задание 2. - Пользователь вводит месяц и год. Вывести курс рубля за этот месяц, найти наибольший и наименьшие значения
     // Инфо здесь: Как найти анализ курса валют за определенную дату. Урок 6 Видео мин 0.44.56
     // https://lms.synergy.ru/student/updiscipline/4474947/1045153/1/1
+    // Тоже: Как найти минимум и максимум массива | Фрагмент лекции JavaRush https://youtu.be/DO1xhnyu5cw
     public static void main(String[] args) throws IOException, ParseException {
         BufferedReader buffered = new BufferedReader(new InputStreamReader(System.in));
 

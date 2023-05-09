@@ -1,7 +1,4 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.math.RoundingMode;
 import java.net.URL;
 import java.net.URLConnection;
@@ -11,9 +8,8 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.List;
+import java.time.format.FormatStyle;
+import java.util.*;
 
 // Кейс «Анализатор курса валют».
 // 3. Очень сложное:
@@ -25,9 +21,14 @@ public class Case_3_1_1 {
 
     public static void main(String[] args) throws IOException, ParseException {
         BufferedReader buffered = new BufferedReader(new InputStreamReader(System.in));
+        System.out.println("Задание: \n3. Очень сложное:\n" +
+                "- Найти самые сильные скачки в этот промежуток, дни, когда курс сильно вырос или упал. \nАвтоматически скачать текст статьи из википедии, отвечающей за факты на эту дату \n(пример https://ru.wikipedia.org/wiki/%D0%A4%D0%B5%D0%B2%D1%80%D0%B0%D0%BB%D1%8C_2021_%D0%B3%D0%BE%D0%B4%D0%B0\n" +
+                "), и показать пользователю\n");
+        System.out.println("Решение: ");
 
-        System.out.println("Введите исходные месяц и год с разделителем '/', пример: 02/2020:");
+        System.out.print("Введите исходные месяц и год с разделителем '/', пример: 03/2023: ");
         String origMonth = buffered.readLine();  // Start month
+        System.out.println();
 
         // Делаем парсинг введённой строки методом Split.
         String[] items = origMonth.split("/");
@@ -41,19 +42,25 @@ public class Case_3_1_1 {
         YearMonth ym = YearMonth.of(yeaI, monI);
 
         // Скачиваем исходный код веб-страницы Центробанка.
+        // https://cbr.ru/scripts/XML_dynamic.asp?date_req1=28/02/2023&date_req2=31/03/2023&VAL_NM_RQ=R01235
         String originalPage = downloadWebPage("https://cbr.ru/scripts/XML_dynamic.asp?date_req1=12/11/2021&date_req2=12/11/2021&VAL_NM_RQ=R01235");
         // Задаём адрес исходной веб-страницы Центробанка в текстовом формате.
         String originalPageText = "https://cbr.ru/scripts/XML_dynamic.asp?date_req1=12/11/2021&date_req2=12/11/2021&VAL_NM_RQ=R01235";
 
-//    get the last day of month
         int lastDay = ym.lengthOfMonth();
-//    Создаем массив ArrayList, куда записываем в качестве элементов курс на текущую дату.
-        List<Double> listCourses = new ArrayList<>();
 
-//    loop through the days
+        List<Double> ratesList = new ArrayList<>();
+        List<Double> ratesListPlusPreviousDay = new ArrayList<>();
+
+        // Задаём Map.
+        Map<String, Double> mapRatesInDates = new HashMap<>();
+        Map<String, Double> mapRatesInDatesPlusPreviousDay = new HashMap<>(); // Пробуем добавить Map плюс посл. день предыдущего мес.
+
+        //    loop 1 through the days
         for (int day = 1; day <= lastDay; day++) {
             // create the day
             LocalDate dt = ym.atDay(day);
+
             DateTimeFormatter f = DateTimeFormatter.ofPattern("dd/MM/yyyy");
             String dtStr = dt.format(f);
             // set to midnight at JVM default timezone
@@ -61,93 +68,221 @@ public class Case_3_1_1 {
             int endIndex = originalPage.lastIndexOf("</Value>");
             SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
             Calendar c = Calendar.getInstance();
-            c.setTime(sdf.parse(String.valueOf(dtStr)));
-            String nextDate;
-            nextDate = sdf.format(c.getTime());  // entering nextDate
+            c.setTime(sdf.parse(dtStr));
+            String currentDate;
+            currentDate = sdf.format(c.getTime());  // entering current Date
 
-            // Меняем в адресе исходной страницы дату на следующую.
-            String urlWithNextDate = originalPageText.replaceAll("12/11/2021", nextDate);
+            // Приводим currentDate к формату LocalDate
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            LocalDate localDate = LocalDate.parse(currentDate, formatter);
 
-            String nextPage = downloadWebPage(urlWithNextDate);
+            // Меняем в адресе исходной страницы дату на текующую.
+            String urlWithCurrentDate = originalPageText.replaceAll("12/11/2021", currentDate);
 
-            if (nextPage.contains("<Value>")) {
-                String courseNextPage = nextPage.substring(startIndex, endIndex);
+            String currentPage = downloadWebPage(urlWithCurrentDate);
+
+            if (currentPage.contains("<Value>")) {
+                String currentRatePage = currentPage.substring(startIndex, endIndex);
                 // Задаём курс в виде переменной Double.
-                double courseNextDoble = Double.parseDouble(courseNextPage.replace(",", "."));
-                // System.out.println("Курс в типе переменной Double:");
-                // System.out.println(courseNextDoble);
-                // Выводим на экран дату и соответствующий курс.
-                System.out.println("Курс на " + nextDate + "    " + courseNextDoble);
-                listCourses.add(courseNextDoble);
+                double doubleCurrentRate = Double.parseDouble(currentRatePage.replace(",", "."));
+                System.out.println(/*dt + "*/"Курс на " + currentDate + "    " + doubleCurrentRate);
+                mapRatesInDates.put(String.valueOf(localDate), doubleCurrentRate);
+                ratesList.add(doubleCurrentRate);
             } else {
-                String courseNextPage = "";
-                System.out.println("Курс на " + nextDate);
+                System.out.println(/*dt + "*/"Курс на " + currentDate);
             }
         }
-//Далее ищем максимальные перепады курса.
-        double max = maxDifference(listCourses);
-        double min = minDifference(listCourses);
+
+        System.out.println();
+
+        //    loop 2 through the days
+        for (int day = 1; day <= 1; day++) {
+            // create the day
+            LocalDate dt = ym.atDay(day).minusDays(1);
+
+            DateTimeFormatter f = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            String dtStr = dt.format(f);
+            // set to midnight at JVM default timezone
+            int startIndex = originalPage.lastIndexOf("<Value>") + 7;
+            int endIndex = originalPage.lastIndexOf("</Value>");
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+            Calendar c = Calendar.getInstance();
+            c.setTime(sdf.parse(dtStr));
+            String currentDate;
+            currentDate = sdf.format(c.getTime());  // entering current Date
+
+            // Приводим currentDate к формату LocalDate
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            LocalDate localDate = LocalDate.parse(currentDate, formatter);
+
+            // Меняем в адресе исходной страницы дату на текующую.
+            String urlWithCurrentDate = originalPageText.replaceAll("12/11/2021", currentDate);
+
+            String currentPage = downloadWebPage(urlWithCurrentDate);
+
+            if (currentPage.contains("<Value>")) {
+                String currentRatePage = currentPage.substring(startIndex, endIndex);
+                // Задаём курс в виде переменной Double.
+                double doubleCurrentRate = Double.parseDouble(currentRatePage.replace(",", "."));
+                mapRatesInDatesPlusPreviousDay.put(String.valueOf(localDate), doubleCurrentRate);
+                ratesListPlusPreviousDay.add(doubleCurrentRate);
+            } else {
+            }
+        }
+
+        for (int day = 1; day <= lastDay; day++) {
+            // create the day
+            LocalDate dt = ym.atDay(day);
+
+            DateTimeFormatter f = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            String dtStr = dt.format(f);
+            // set to midnight at JVM default timezone
+            int startIndex = originalPage.lastIndexOf("<Value>") + 7;
+            int endIndex = originalPage.lastIndexOf("</Value>");
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+            Calendar c = Calendar.getInstance();
+            c.setTime(sdf.parse(dtStr));
+            String currentDate;
+            currentDate = sdf.format(c.getTime());  // entering current Date
+
+            // Приводим currentDate к формату LocalDate
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            LocalDate localDate = LocalDate.parse(currentDate, formatter);
+
+            // Меняем в адресе исходной страницы дату на текующую.
+            String urlWithCurrentDate = originalPageText.replaceAll("12/11/2021", currentDate);
+
+            String currentPage = downloadWebPage(urlWithCurrentDate);
+
+            if (currentPage.contains("<Value>")) {
+                String currentRatePage = currentPage.substring(startIndex, endIndex);
+                // Задаём курс в виде переменной Double.
+                double doubleCurrentRate = Double.parseDouble(currentRatePage.replace(",", "."));
+                mapRatesInDatesPlusPreviousDay.put(String.valueOf(localDate), doubleCurrentRate);
+                ratesListPlusPreviousDay.add(doubleCurrentRate);
+            } else {
+            }
+        }
+
+        // Сортируем и распечатываем отсортированный список Map. Про сортировку здесь: https://rukovodstvo.net/posts/id_598/
+        Map<String, Double> sortedMap = new TreeMap<>(mapRatesInDates); // - ИЗ ЭТОГО Мапа МАКСИМАЛЬНЫЕ ПЕРЕПАДЫ КУРСА БРАТЬ.
+        Map<String, Double> sortedMap2 = new TreeMap<>(mapRatesInDatesPlusPreviousDay); // - ИЗ ЭТОГО Мапа МАКСИМАЛЬНЫЕ ПЕРЕПАДЫ КУРСА БРАТЬ.
+
+        List<String> keys = new ArrayList<String>(sortedMap2.keySet());
+        Double maxDiffer = sortedMap2.get(keys.get(1)) - sortedMap2.get(keys.get(0));
+        String dateOfMaxDiffer = keys.get(0);
+        String dateOfMaxDifferFormatted = null;
+
+        Double minDiffer = sortedMap2.get(keys.get(1)) - sortedMap2.get(keys.get(0));
+        String dateOfMinDiffer = keys.get(0);
+        String dateOfMinDifferFormatted = null;
+
+        for (int i = 0; i < keys.size(); i++) {
+            String key = keys.get(i);
+            Double value = sortedMap2.get(key);
+        }
+
+        for (int i = 1; i < keys.size(); i++) {
+            String key = keys.get(i);
+            Double value = sortedMap2.get(key);
+            String keyMinusOne = keys.get(i - 1);
+            Double valueMinusOne = sortedMap2.get(keyMinusOne);
+
+            Double Differ = (value - valueMinusOne);
+            DecimalFormat df2 = new DecimalFormat("0.000");
+            df2.setRoundingMode(RoundingMode.DOWN);
+            if ((sortedMap2.get(keys.get(i)) - sortedMap2.get(keys.get(i - 1)) > maxDiffer)) {
+                maxDiffer = (value - valueMinusOne);
+                dateOfMaxDiffer = key;
+                String[] frs = dateOfMaxDiffer.split("-");
+                String fr1 = frs[0];
+                String fr2 = frs[1];
+                String fr3 = frs[2];
+                dateOfMaxDifferFormatted = (fr3 + "/" + fr2 + "/" + fr1);
+
+
+            }
+            if ((sortedMap2.get(keys.get(i)) - sortedMap2.get(keys.get(i - 1)) < minDiffer)) {
+                minDiffer = (value - valueMinusOne);
+                dateOfMinDiffer = key;
+                String[] frs = dateOfMinDiffer.split("-");
+                String fr1 = frs[0];
+                String fr2 = frs[1];
+                String fr3 = frs[2];
+                dateOfMinDifferFormatted = (fr3 + "/" + fr2 + "/" + fr1);
+
+            }
+        }
+
+        // The printed result
         DecimalFormat df = new DecimalFormat("0.000");
         df.setRoundingMode(RoundingMode.DOWN);
-        System.out.println("\nЗа указанный месяц курс максимально вырос между двумя соседними датами на величину: " + df.format(max));
-        System.out.println("За указанный месяц курс максимально упал между двумя соседними датами на величину: " + df.format(min));
-    }
+        System.out.println("За указанный месяц максимальный прирост курса между двумя соседними датами: " + df.format(maxDiffer) + ", это пришлось на дату: " + dateOfMaxDiffer);
+        System.out.println("За указанный месяц максимальное снижение курса между двумя соседними датами: " + df.format(minDiffer) + ", это пришлось на дату: " + dateOfMinDiffer);
 
-    //Пишем классы для поиска максимальных перепадов курса.
-//Сначала максимальную разницу находим.
-    public static double maxDifference(List<Double> listCourses) {
-        if (listCourses == null || listCourses.size() == 0) {
-            return Double.MIN_VALUE;
-        }
-        int len = listCourses.size();
-        double[] diff = new double[len - 1];
-        for (int i = 0; i < len - 1; i++) {
-            diff[i] = listCourses.get(i + 1) - listCourses.get(i);
-        }
-        return max(diff);
-    }
+        //Сохраняем страницу из википедии max
+        String dtStrMax = dateOfMaxDifferFormatted;
+        String[] items2 = dtStrMax.split("/");
+        String dat2 = items2[0];
+        String mon2 = items2[1];
+        String yea2 = items2[2];
+        String dtStr2 = (yea2 + "-" + mon2 + "-" + dat2);
 
-    public static double max(double[] diff) {
-        if (diff == null || diff.length == 0) {
-            return Double.MIN_VALUE;
-        }
-        double max = diff[0];
-        for (int i = 0, len = diff.length; i < len; i++) {
-            //not necessary,since 'int[] data' is sorted,so 'int[] diff' is progressively increased.
-            //int tmp=diff[i]>0?diff[i]:(-diff[i]);
-            if (max < diff[i]) {
-                max = diff[i];
-            }
-        }
-        return max;
-    }
+        LocalDate localDate2 = LocalDate.parse(dtStr2);
 
-    //Теперь минимальную разницу находим.
-    public static double minDifference(List<Double> listCourses) {
-        if (listCourses == null || listCourses.size() == 0) {
-            return Double.MIN_VALUE;
-        }
-        int len = listCourses.size();
-        double[] diff = new double[len - 1];
-        for (int i = 0; i < len - 1; i++) {
-            diff[i] = listCourses.get(i + 1) - listCourses.get(i);
-        }
-        return min(diff);
-    }
+        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG);
+        String formattedDate1 = formatter.format(localDate2);
 
-    public static double min(double[] diff) {
-        if (diff == null || diff.length == 0) {
-            return Double.MIN_VALUE;
-        }
-        double min = diff[0];
-        for (int i = 0, len = diff.length; i < len; i++) {
-            //not necessary,since 'int[] data' is sorted,so 'int[] diff' is progressively increased.
-            //int tmp=diff[i]>0?diff[i]:(-diff[i]);
-            if (min > diff[i]) {
-                min = diff[i];
-            }
-        }
-        return min;
+        String[] items3 = formattedDate1.split(" ");
+        String dat3 = items3[0];
+        String mon3 = items3[1];
+        String yea3 = items3[2];
+        String gFirst3 = items3[3];
+        String g3 = gFirst3.replace("г.", "года");
+
+        String dtStrForChangeMax = (dat3 + "_" + mon3 + "_" + yea3 + "_" + g3);
+
+        String pageWikiOriginText = "https://ru.wikinews.org/wiki/Лента_новостей_31_марта_2023_года";
+        String pageWikiOriginChangedTextMax = pageWikiOriginText.replaceAll("31_марта_2023_года", dtStrForChangeMax);
+        String pageWikiOriginChanged1 = downloadWebPage(pageWikiOriginChangedTextMax);
+
+        //Сохраняем страницу из википедии min
+        String dtStrMin = dateOfMinDifferFormatted;
+        String[] items4 = dtStrMin.split("/");
+        String dat4 = items4[0];
+        String mon4 = items4[1];
+        String yea4 = items4[2];
+        String dtStr4 = (yea4 + "-" + mon4 + "-" + dat4);
+
+        LocalDate localDate4 = LocalDate.parse(dtStr4);
+
+        DateTimeFormatter formatter2 = DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG);
+        String formattedDate2 = formatter2.format(localDate4);
+
+        String[] items5 = formattedDate2.split(" ");
+        String dat5 = items5[0];
+        String mon5 = items5[1];
+        String yea5 = items5[2];
+        String gSecond5 = items5[3];
+        String g5 = gSecond5.replace("г.", "года");
+
+        String dtStrForChangeMin = (dat5 + "_" + mon5 + "_" + yea5 + "_" + g5);
+
+        String pageWikiOriginChangedTextMin = pageWikiOriginText.replaceAll("31_марта_2023_года", dtStrForChangeMin);
+        String pageWikiOriginChanged2 = downloadWebPage(pageWikiOriginChangedTextMin);
+
+        // создаём новый буферизированный объект
+        BufferedWriter writer1 = new BufferedWriter(new FileWriter("1pageGrowthRate.html"));
+        // добавляем название переменной со страницей, которую сохраняем
+        writer1.write(pageWikiOriginChanged1);
+        // закрываем writer
+        writer1.close();
+
+        BufferedWriter writer2 = new BufferedWriter(new FileWriter("2pageDeclineRate.html"));
+        writer2.write(pageWikiOriginChanged2);
+        writer2.close();
+
+        System.out.println("\nСтраницы из Википедии сохранены");
     }
 
     private static String downloadWebPage(String url) throws IOException {

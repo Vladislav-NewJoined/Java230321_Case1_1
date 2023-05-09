@@ -54,7 +54,7 @@ public class Case_3_1_1 {
 
         // Задаём Map.
         Map<String, Double> mapRatesInDates = new HashMap<>();
-        Map<String, Double> mapRatesInDatesPlusPreviousDay = new HashMap<>(); // Пробуем добавить Map плюс посл. день предыдущего мес.
+        Map<String, Double> mapRatesInDatesPlusPreviousDay = new HashMap<>();
 
         //    loop 1 through the days
         for (int day = 1; day <= lastDay; day++) {
